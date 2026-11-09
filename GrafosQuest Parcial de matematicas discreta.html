@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grafos: llega a la meta</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6fb;--grid:#d5deee;--fg:#14213d;--card:#fff;--line:#b7c3dc;--acc:#2457e6;--goal:#e8a100;--ok:#16824a;--bad:#d03a3a;--mut:#5b6785;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a33;--grid:#1b2a4d;--fg:#eaf0ff;--card:#16254a;--line:#40548a;--acc:#7da2ff;--goal:#ffc83d;--ok:#4cd08a;--bad:#ff7b7b;--mut:#9fb0d9;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1a33;--grid:#1b2a4d;--fg:#eaf0ff;--card:#16254a;--line:#40548a;--acc:#7da2ff;--goal:#ffc83d;--ok:#4cd08a;--bad:#ff7b7b;--mut:#9fb0d9;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg) linear-gradient(var(--grid) 1px,transparent 1px) 0 0/28px 28px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/28px 28px;color:var(--fg);font:16px/1.5 Sora,system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:20px 14px 40px}
+h1{font-size:1.6rem;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--mut);margin:0 0 12px;font-size:.92rem}
+.bar{display:flex;justify-content:space-between;gap:8px;font-weight:600;margin-bottom:6px}
+#lives{color:var(--bad);letter-spacing:3px}
+svg{width:100%;height:auto;background:var(--card);border:2px solid var(--fg);border-radius:6px;display:block}
+.e{stroke:var(--line);stroke-width:3;stroke-linecap:round}
+.e.t{stroke:var(--acc);stroke-width:7}
+.n circle{fill:var(--card);stroke:var(--fg);stroke-width:2.5}
+.n text{fill:var(--fg);font:800 20px Sora,system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.n.cur circle{fill:var(--acc);stroke:var(--acc)}
+.n.cur text{fill:#fff}
+.n.goal circle{stroke:var(--goal);stroke-width:5}
+.n.can circle{stroke:var(--acc);stroke-width:5;cursor:pointer;animation:p .9s infinite alternate}
+.n.can{cursor:pointer}
+.tag{fill:var(--mut);font:600 13px Sora,system-ui,sans-serif;text-anchor:middle}
+@keyframes p{to{stroke-width:9}}
+@media (prefers-reduced-motion:reduce){.n.can circle{animation:none}}
+.card{background:var(--card);border:2px solid var(--fg);border-radius:6px;padding:14px;margin-top:12px}
+.qt{font-weight:600;font-size:1.1rem;margin:2px 0 10px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font:inherit;cursor:pointer;border:2px solid var(--fg);background:var(--card);color:var(--fg);border-radius:6px;padding:9px 12px}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.opt.ok{background:var(--ok);border-color:var(--ok);color:#fff;opacity:1}
+.opt.no{background:var(--bad);border-color:var(--bad);color:#fff;opacity:1}
+.go{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600;margin-top:10px}
+.ll{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.fb{margin:10px 0 0}
+.ov{overflow-x:auto}
+table{border-collapse:collapse;margin-top:8px}
+td,th{border:1px solid var(--line);padding:3px 9px;text-align:center}
+.hint{background:var(--grid);padding:8px 10px;border-radius:6px}
+.reset{margin-top:12px;border-style:dashed}
+@media(max-width:480px){.opts{grid-template-columns:1fr}}
+</style></head>
+<body><main>
+<h1>Grafos: llega a la meta</h1>
+<p class="sub">Viaja del Inicio a la Meta. Cada arista cuesta una pregunta. Tienes 3 vidas en cada nivel.</p>
+<div class="bar"><span id="lives"></span><span id="lvl"></span></div>
+<svg id="b" viewBox="0 0 630 400" role="img" aria-label="Tablero: grafo con vértices conectados por aristas"></svg>
+<div id="q"></div>
+<div class="ll" id="ll"></div>
+<button class="reset" onclick="init()">Reiniciar juego</button>
+</main>
+<script>
+const MAPS=[
+{n:'Nivel 1: fácil',V:'ABCDE',E:'AB AC BC BD CD DE',P:{A:[80,200],B:[220,90],C:[240,310],D:[400,200],E:[550,200]}},
+{n:'Nivel 2: medio',V:'ABCDEFG',E:'AB AC BC BD CE DE DF EG FG',P:{A:[70,200],B:[190,90],C:[190,310],D:[330,90],E:[330,310],F:[470,90],G:[560,200]}},
+{n:'Nivel 3: difícil',V:'ABCDEFGHI',E:'AB AC BC BD CD BE CF DE DF EG FH GH GI HI',P:{A:[50,200],B:[150,75],C:[150,325],D:[270,200],E:[300,60],F:[300,340],G:[440,130],H:[440,270],I:[585,200]}}
+].map(m=>({...m,V:[...m.V],E:m.E.split(' ').map(e=>[...e]),goal:m.V.slice(-1)}));
+const $=i=>document.getElementById(i);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuf=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]);
+let S,M;
+const adj=v=>M.E.filter(e=>e.includes(v)).map(e=>e[0]===v?e[1]:e[0]);
+const deg=v=>adj(v).length;
+const sum=()=>M.V.reduce((s,v)=>s+deg(v),0);
+const near=a=>[a+1,a-1,a+2,a-2,a+3].filter(x=>x>0);
+const ed=()=>M.E.map(e=>e.join(''));
+const HV='Fórmula: gr(v) = número de aristas que inciden en v. Cuenta las líneas que tocan el vértice.';
+const HS='Fórmula: Σ gr(v) = 2·|E|. Cada arista suma 1 a la valencia de cada uno de sus dos extremos.';
+const HE='Fórmula: |E| = (Σ gr(v)) / 2.';
+function mk(t,a,pool,e,h){a=String(a);const w=shuf([...new Set(pool.map(String))].filter(x=>x!==a)).slice(0,3);return{t,a,o:shuf([a,...w]),e,h}}
+const QD1=()=>mk('En un grafo, las aristas son…','Las líneas que unen pares de vértices',['Los puntos o nodos del grafo','El número de conexiones de un vértice','El camino más corto entre dos vértices'],'Los vértices son los puntos y las aristas son las líneas que los unen.','Piensa en el tablero: los círculos son los vértices; lo que une dos círculos es una arista.');
+const QD2=()=>mk('La valencia de un vértice es…','El número de aristas que inciden en él',['El número de vértices del grafo','La longitud del camino hasta la meta','El número de vértices no adyacentes a él'],'La valencia (grado) cuenta las aristas que tocan al vértice.',HV);
+const QV=()=>{const v=pick(M.V),d=deg(v);return mk(`¿Cuál es la valencia del vértice ${v}?`,d,[...near(d),1,2,3,4],`${v} tiene ${d} aristas: ${adj(v).map(u=>v+u).join(', ')}.`,HV)};
+const QN=()=>mk('¿Cuántos vértices tiene este grafo?',M.V.length,near(M.V.length),`Los vértices son ${M.V.join(', ')}, así que |V| = ${M.V.length}.`,'|V| es la cantidad de círculos del tablero.');
+const QP=()=>{const pr=[];M.V.forEach((a,i)=>M.V.slice(i+1).forEach(b=>pr.push(a+b)));const f=p=>p[0]+'–'+p[1],e=ed();return mk('¿Cuál de estos pares de vértices forma una arista?',f(pick(e)),pr.filter(p=>!e.includes(p)).map(f),`Dos vértices son adyacentes si una arista los une. Aquí las aristas son: ${e.join(', ')}.`,'Dos vértices son adyacentes ⇔ hay una línea que los une en el tablero. Revisa cada par.')};
+const QE=()=>mk('¿Cuántas aristas tiene este grafo?',M.E.length,[...near(M.E.length),sum()],`Son ${M.E.length} aristas: ${ed().join(', ')}.`,'Cuenta cada arista una sola vez, o usa |E| = (Σ gr(v)) / 2.');
+const QK=()=>{const v=pick(M.V),k=deg(v);return mk(`¿Cuál de estos vértices tiene valencia ${k}?`,v,M.V.filter(u=>deg(u)!==k),`${v} tiene ${k} aristas. Con valencia ${k}: ${M.V.filter(u=>deg(u)===k).join(', ')}.`,HV)};
+const QC=()=>{const k=pick(M.V.map(deg)),l=M.V.filter(u=>deg(u)===k);return mk(`¿Cuántos vértices de este grafo tienen valencia ${k}?`,l.length,near(l.length),`Con valencia ${k}: ${l.join(', ')}. Son ${l.length}.`,`Calcula gr(v) de cada vértice contando sus aristas y cuenta cuántos dan ${k}.`)};
+const QS=()=>mk('¿Cuánto suman las valencias de todos los vértices?',sum(),[...near(sum()),M.E.length],`Σ gr(v) = 2·|E| = 2·${M.E.length} = ${sum()}.`,HS);
+const QR=()=>{const n=S.path.length-1;if(n<1)return QS();return mk(`Tu recorrido hasta ahora es ${S.path.join('→')}. ¿Cuál es su longitud?`,n,near(n),`La longitud es el número de aristas recorridas: ${n}.`,'Longitud = número de aristas recorridas = (vértices del recorrido) − 1.')};
+const QG=()=>{const k=pick([5,6,7,8,9,12]);return mk(`Un grafo tiene ${k} aristas. ¿Cuánto suman sus valencias?`,2*k,[k,2*k+1,2*k-1,3*k],`Σ gr(v) = 2·|E| = 2·${k} = ${2*k}.`,HS)};
+const QI=()=>mk(`La suma de las valencias de un grafo es ${sum()}. ¿Cuántas aristas tiene?`,M.E.length,[sum(),...near(M.E.length)],`|E| = Σ gr(v) / 2 = ${sum()}/2 = ${M.E.length}.`,HE);
+const QH=()=>{const [n,k]=pick([[6,3],[8,3],[4,3],[6,4],[10,3]]),a=n*k/2;return mk(`Un grafo tiene ${n} vértices y todos tienen valencia ${k}. ¿Cuántas aristas tiene?`,a,[n*k,n+k,a+1,a-1,a+2],`Σ gr(v) = ${n}·${k} = ${n*k}, y |E| = ${n*k}/2 = ${a}.`,HE)};
+const LV=[[QD1,QD2,QV,QN,QP,QE],[QV,QE,QK,QS,QR,QC],[QS,QR,QI,QC,QH,QG,QE]];
+function question(){const L=LV[S.lv];let u=L.map((_,i)=>i).filter(i=>!S.seen.includes(i));if(!u.length){S.seen=[];u=L.map((_,i)=>i)}const i=pick(u);S.seen.push(i);return L[i]()}
+function load(lv){M=MAPS[lv];S={lv,pos:M.V[0],path:[M.V[0]],lives:3,seen:[],q:null,tgt:null,done:false,used:{f:0,h:0}};$('q').innerHTML='';render()}
+function render(){
+ const cur=S.pos,nb=adj(cur),won=cur===M.goal,lost=S.lives<=0,end=won||lost,can=!S.q&&!end,st=M.V[0],P=M.P;
+ const tr=new Set();S.path.forEach((v,i)=>{if(i)tr.add([S.path[i-1],v].sort().join())});
+ let s=M.E.map(([a,b])=>`<line class="e${tr.has([a,b].sort().join())?' t':''}" x1="${P[a][0]}" y1="${P[a][1]}" x2="${P[b][0]}" y2="${P[b][1]}"/>`).join('');
+ s+=M.V.map(v=>`<g class="n${v===cur?' cur':''}${v===M.goal?' goal':''}${can&&nb.includes(v)?' can':''}" data-v="${v}"><circle cx="${P[v][0]}" cy="${P[v][1]}" r="28"/><text x="${P[v][0]}" y="${P[v][1]}">${v}</text></g>`).join('');
+ s+=`<text class="tag" x="${P[st][0]}" y="${P[st][1]+54}">Inicio</text><text class="tag" x="${P[M.goal][0]}" y="${P[M.goal][1]+54}">Meta</text>`;
+ $('b').innerHTML=s;
+ $('lives').textContent='♥'.repeat(S.lives)+'♡'.repeat(3-S.lives);
+ $('lvl').textContent=M.n;
+ if(end){
+  const len=S.path.length-1,rep=new Set(S.path).size!==S.path.length,last=S.lv===2;
+  $('q').innerHTML=won
+   ?`<div class="card"><p class="qt">${last?'¡Completaste los 3 niveles!':'¡Nivel superado!'} Te quedaron ${S.lives} ${S.lives===1?'vida':'vidas'}.</p><p class="fb">Tu recorrido: <b>${S.path.join('→')}</b><br>Longitud: ${len} aristas. ${rep?'Repite vértices, así que es un recorrido y no un camino.':'No repite vértices, así que es un camino.'}</p><button class="go" onclick="load(${last?0:S.lv+1})">${last?'Jugar de nuevo':'Ir al nivel siguiente'}</button></div>`
+   :`<div class="card"><p class="qt">Te quedaste sin vidas en ${cur}.</p><p class="fb">Repasa valencias y adyacencia, y vuelve a intentarlo.</p><button class="go" onclick="load(${S.lv})">Reintentar nivel</button></div>`;
+ }
+ ll();
+}
+function ll(){
+ const u=S.used,open=S.q&&!S.done;
+ $('ll').innerHTML=`<button id="lf" ${u.f||!open?'disabled':''}>50:50</button><button id="lh" ${u.h||!open?'disabled':''}>Pista</button>`;
+ $('lf').onclick=()=>{S.used.f=1;const k=[...document.querySelectorAll('.opt')].filter(b=>S.q.o[b.dataset.i]!==S.q.a);shuf(k).slice(0,2).forEach(b=>b.disabled=true);ll()};
+ $('lh').onclick=()=>{S.used.h=1;$('hint').innerHTML=`<p class="fb hint"><b>Pista:</b> ${S.q.h}</p>`;ll()};
+}
+$('b').addEventListener('click',e=>{
+ const g=e.target.closest('.can');if(!g||S.q)return;
+ S.tgt=g.dataset.v;S.q=question();S.done=false;
+ $('q').innerHTML=`<div class="card"><p class="sub">Para viajar de ${S.pos} a ${S.tgt}:</p><p class="qt">${S.q.t}</p><div class="opts">${S.q.o.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}</div><div id="hint"></div><div id="fb"></div></div>`;
+ document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(+b.dataset.i));
+ render();
+});
+function answer(i){
+ if(S.done)return;S.done=true;
+ const q=S.q,good=q.o[i]===q.a;
+ document.querySelectorAll('.opt').forEach((b,j)=>{b.disabled=true;if(q.o[j]===q.a)b.classList.add('ok');else if(j===i)b.classList.add('no')});
+ if(good){S.path.push(S.tgt);S.pos=S.tgt}else S.lives--;
+ $('fb').innerHTML=`<p class="fb"><b>${good?'Correcto.':'Incorrecto.'}</b> ${q.e}</p><button class="go" id="nx">${good?'Avanzar a '+S.pos:'Continuar'}</button>`;
+ $('nx').onclick=()=>{S.q=null;S.tgt=null;if(S.pos!==M.goal&&S.lives>0)$('q').innerHTML='';render()};
+ ll();
+}
+load(0);
+</script></body></html>
